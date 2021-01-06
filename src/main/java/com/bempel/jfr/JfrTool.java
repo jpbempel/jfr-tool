@@ -120,6 +120,10 @@ class Dump implements Callable<Integer> {
     @Override
     public Integer call() throws Exception {
         RecordingFile recordingFile = new RecordingFile(Paths.get(jfrFileName));
+        // force to load all chunks
+        while (recordingFile.hasMoreEvents()) {
+            recordingFile.readEvent();
+        }
         List<ChunkParser> chunks = recordingFile.getChunks();
         for (ChunkParser chunk : chunks) {
             for (Map.Entry<Long, ConstantMap> entryMap : chunk.getConstantPools().entrySet()) {
@@ -128,11 +132,10 @@ class Dump implements Callable<Integer> {
                     for (Map.Entry<Long, Object> entry : map.entrySet()) {
                         System.out.printf("%s\n", entry.getValue());
                     }
-                    return 0;
                 }
             }
         }
-        return -1;
+        return 0;
     }
 }
 
