@@ -41,6 +41,8 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
 
 /**
  * A recording file.
@@ -89,6 +91,7 @@ public final class RecordingFile implements Closeable {
     private ChunkParser chunkParser;
     private RecordedEvent nextEvent;
     private boolean eof;
+    private List<ChunkParser> chunks = new ArrayList<>();
 
     /**
      * Creates a recording file.
@@ -107,8 +110,8 @@ public final class RecordingFile implements Closeable {
         findNext();
     }
 
-    public LongMap<ConstantMap> getConstantPools() {
-        return chunkParser.getConstantPools();
+    public List<ChunkParser> getChunks() {
+        return chunks;
     }
 
     /**
@@ -254,8 +257,10 @@ public final class RecordingFile implements Closeable {
         while (nextEvent == null) {
             if (chunkParser == null) {
                 chunkParser = new ChunkParser(input);
+                chunks.add(chunkParser);
             } else if (!chunkParser.isLastChunk()) {
                 chunkParser = chunkParser.nextChunkParser();
+                chunks.add(chunkParser);
             } else {
                 eof = true;
                 return;

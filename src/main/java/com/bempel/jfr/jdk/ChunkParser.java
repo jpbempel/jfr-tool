@@ -37,13 +37,15 @@ import jdk.jfr.internal.consumer.RecordingInput;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 /**
  * Parses a chunk.
  *
  */
-final class ChunkParser {
+public final class ChunkParser {
     private static final long CONSTANT_POOL_TYPE_ID = 1;
     private final RecordingInput input;
     private final LongMap<Parser> parsers;
@@ -53,6 +55,7 @@ final class ChunkParser {
     private final LongMap<Type> typeMap;
     private final TimeConverter timeConverter;
     private final LongMap<ConstantMap> constantPools;
+    private final Map<String, Long> poolSizes = new HashMap<>();
 
     public ChunkParser(RecordingInput input) throws IOException {
         this(new ChunkHeader(input));
@@ -141,15 +144,22 @@ final class ChunkParser {
                     int count = input.readInt();
                     Logger.log(LogTag.JFR_SYSTEM_PARSER, LogLevel.TRACE, () -> "Constant: " + getName(id) + "[" + count + "]");
                     for (int j = 0; j < count; j++) {
+                        long before = input.position();
                         long key = input.readLong();
                         Object value = parser.parse(input);
                         pool.put(key, value);
+                        long poolEntrySize = input.position() - before;
+                        poolSizes.compute(type.getName(), (k, v) -> v == null ? poolEntrySize : v + poolEntrySize);
                     }
                 } catch (Exception e) {
                     throw new IOException("Error parsing constant pool type " + getName(id) + " at position " + input.position() + " at check point between [" + nextCP + ", " + nextCP + size + "]", e);
                 }
             }
-            //System.out.println("Pool type names: " + poolTypeNames);
+            /*
+            poolSizes.forEach((k, v) -> {
+                System.out.printf("Pool Name: %s Size: %d \n", k, v);
+            });
+             */
             if (input.position() != nextCP + size) {
                 throw new IOException("Size of check point event doesn't match content");
             }
@@ -179,5 +189,9 @@ final class ChunkParser {
 
     public LongMap<ConstantMap> getConstantPools() {
         return constantPools;
+    }
+
+    public Map<String, Long> getPoolSizes() {
+        return poolSizes;
     }
 }
